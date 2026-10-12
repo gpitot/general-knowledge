@@ -341,3 +341,8 @@ legend {
     display: none;
   }
 }
+
+/* Let the unclipped world map (see QuizMap) paint beyond Leaflet's SVG viewport. */
+.quiz-map .leaflet-overlay-pane svg {
+  overflow: visible;
+}

@@ -17,6 +17,12 @@ const HIGHLIGHT: Record<MapStatus, string> = {
   wrong: '#c62f3a',
 };
 
+/**
+ * Leaflet normally clips shapes to the visible area. Turning that off (plus
+ * `overflow: visible` on the SVG in styles.css) keeps every country drawn.
+ */
+const WHOLE_WORLD = { noClip: true } as L.PathOptions;
+
 /** Fly to the country, one zoom level wider than a tight fit so neighbours give context. */
 function frame(map: L.Map, bounds: L.LatLngBoundsLiteral, duration: number) {
   const b = L.latLngBounds(bounds);
@@ -34,7 +40,9 @@ export default function QuizMap({ allFeatures, target, status }: Props) {
   // No tile layer: tiles carry place-name labels that would give answers away.
   useEffect(() => {
     const map = L.map(containerRef.current!, {
-      preferCanvas: true,
+      // SVG, unclipped (see WHOLE_WORLD): the entire world is drawn at each
+      // zoom level, so panning never shows blank areas waiting to redraw.
+      renderer: L.svg({ padding: 0.5 }),
       minZoom: 1,
       maxZoom: 10,
       zoomSnap: 0.25,
@@ -44,7 +52,7 @@ export default function QuizMap({ allFeatures, target, status }: Props) {
       attributionControl: false,
     });
     L.geoJSON({ type: 'FeatureCollection', features: allFeatures } as GeoJSON.FeatureCollection, {
-      style: { color: '#8f8a7d', weight: 0.6, fillColor: '#ebe6d6', fillOpacity: 1 },
+      style: { ...WHOLE_WORLD, color: '#8f8a7d', weight: 0.6, fillColor: '#ebe6d6', fillOpacity: 1 },
       interactive: false,
     }).addTo(map);
     highlightRef.current = L.layerGroup().addTo(map);
@@ -88,7 +96,7 @@ export default function QuizMap({ allFeatures, target, status }: Props) {
     group.clearLayers();
     const color = HIGHLIGHT[status];
     L.geoJSON({ type: 'FeatureCollection', features: target } as GeoJSON.FeatureCollection, {
-      style: { color, weight: 1.5, fillColor: color, fillOpacity: 0.75 },
+      style: { ...WHOLE_WORLD, color, weight: 1.5, fillColor: color, fillOpacity: 0.75 },
       interactive: false,
     }).addTo(group);
 

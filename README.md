@@ -2,6 +2,8 @@
 
 A small web app for learning general knowledge, starting with geography.
 
+**Play it:** https://gpitot.github.io/general-knowledge/
+
 ## Geography quiz
 
 A country is highlighted on a zoomable, pannable world map. Type its name (a dropdown suggests matches as you type) and submit. Wrong answers show the correct one, and your score and streak are tracked as you go. At the end you get a list of the countries you missed.
@@ -21,6 +23,8 @@ npm run dev       # start the dev server
 npm test          # unit tests (answer matching, country data, map geometry)
 npm run build     # typecheck + production build into dist/
 ```
+
+Every push to `main` runs the tests, builds the site and deploys it to GitHub Pages (`.github/workflows/deploy.yml`).
 
 Built with Vite, React, TypeScript and Leaflet. Country shapes come from [Natural Earth](https://www.naturalearthdata.com/) via [`world-atlas`](https://github.com/topojson/world-atlas). They're drawn as vectors with no tile basemap, because map tiles carry place names that would give the answers away.
 

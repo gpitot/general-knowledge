@@ -126,3 +126,9 @@ export function markerPoints(features: CountryFeature[]): [number, number][] {
   }
   return points;
 }
+
+/** [lat, lon] centre of a country's main landmass (see focusBounds). */
+export function centre(features: CountryFeature[]): [number, number] {
+  const [[s, w], [n, e]] = focusBounds(features);
+  return [(s + n) / 2, (w + e) / 2];
+}

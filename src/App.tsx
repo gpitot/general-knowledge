@@ -1,12 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { COUNTRIES, REGIONS, type Country, type Region } from './data/countries';
-import { loadFeatures, type CountryFeature } from './lib/geo';
+import { centre, loadFeatures, type CountryFeature } from './lib/geo';
 import { isCorrect, shuffle } from './lib/answers';
+import { pickChoices } from './lib/choices';
 import QuizMap from './components/QuizMap';
 import AnswerInput from './components/AnswerInput';
+import ChoiceButtons from './components/ChoiceButtons';
 
 type RegionChoice = Region | 'World';
+type QuizType = 'typed' | 'choice';
 type LengthChoice = 10 | 25 | 'all';
+
+const QUIZ_TYPES: { value: QuizType; label: string }[] = [
+  { value: 'typed', label: 'Type the answer' },
+  { value: 'choice', label: 'Multiple choice' },
+];
+
+interface Question {
+  country: Country;
+  /** Options to pick from, in multiple-choice mode. */
+  choices?: Country[];
+}
 
 interface Answer {
   country: Country;
@@ -23,10 +37,13 @@ function featuresFor(country: Country): CountryFeature[] {
     .filter((f): f is CountryFeature => !!f);
 }
 
+const CENTRES = new Map(COUNTRIES.map((c) => [c, centre(featuresFor(c))]));
+
 export default function App() {
   const [region, setRegion] = useState<RegionChoice>('World');
+  const [quizType, setQuizType] = useState<QuizType>('typed');
   const [length, setLength] = useState<LengthChoice>(10);
-  const [queue, setQueue] = useState<Country[] | null>(null);
+  const [queue, setQueue] = useState<Question[] | null>(null);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
 
@@ -38,7 +55,8 @@ export default function App() {
     [region],
   );
 
-  const current = queue?.[index];
+  const question = queue?.[index];
+  const current = question?.country;
   const lastAnswer = answers.length > index ? answers[index] : undefined;
   const finished = queue !== null && index >= queue.length;
   const target = useMemo(() => (current ? featuresFor(current) : []), [current]);
@@ -56,7 +74,15 @@ export default function App() {
 
   function start() {
     const shuffled = shuffle(pool);
-    setQueue(length === 'all' ? shuffled : shuffled.slice(0, length));
+    const countries = length === 'all' ? shuffled : shuffled.slice(0, length);
+    setQueue(
+      countries.map((country) => ({
+        country,
+        // Decoys come from all countries, not just the chosen region, so
+        // border countries still get their real neighbours as options.
+        choices: quizType === 'choice' ? pickChoices(country, COUNTRIES, (c) => CENTRES.get(c)!) : undefined,
+      })),
+    );
     setIndex(0);
     setAnswers([]);
   }
@@ -78,6 +104,22 @@ export default function App() {
             {(['World', ...REGIONS] as RegionChoice[]).map((r) => (
               <button key={r} type="button" className={`chip${r === region ? ' on' : ''}`} onClick={() => setRegion(r)}>
                 {r}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Quiz type</legend>
+          <div className="chips">
+            {QUIZ_TYPES.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                className={`chip${t.value === quizType ? ' on' : ''}`}
+                onClick={() => setQuizType(t.value)}
+              >
+                {t.label}
               </button>
             ))}
           </div>
@@ -159,7 +201,7 @@ export default function App() {
       />
 
       <footer className="controls">
-        {lastAnswer ? (
+        {lastAnswer && (
           <div className={`feedback ${lastAnswer.correct ? 'good' : 'bad'}`} role="status">
             <span>
               {lastAnswer.correct ? (
@@ -177,13 +219,18 @@ export default function App() {
               {index + 1 < queue.length ? 'Next →' : 'See results'}
             </button>
           </div>
-        ) : (
-          <AnswerInput
-            ref={inputRef}
-            countries={COUNTRIES}
-            onSubmit={answer}
-            onSkip={() => answer('')}
+        )}
+        {question?.choices ? (
+          <ChoiceButtons
+            choices={question.choices}
+            answer={question.country}
+            picked={lastAnswer?.given}
+            onPick={answer}
           />
+        ) : (
+          !lastAnswer && (
+            <AnswerInput ref={inputRef} countries={COUNTRIES} onSubmit={answer} onSkip={() => answer('')} />
+          )
         )}
       </footer>
     </div>

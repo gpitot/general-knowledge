@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { COUNTRIES } from '../data/countries';
 import { isCorrect, normalize, suggest } from './answers';
-import { focusBounds, loadFeatures, markerPoints } from './geo';
+import { centre, focusBounds, loadFeatures, markerPoints } from './geo';
+import { distanceKm, pickChoices } from './choices';
 
 const byName = (n: string) => COUNTRIES.find((c) => c.name === n)!;
 
@@ -76,5 +77,35 @@ describe('geometry', () => {
     expect(rings('Kiribati')).toBeGreaterThan(2);
     expect(rings('Germany')).toBe(0);
     expect(rings('Indonesia')).toBe(0);
+  });
+});
+
+describe('multiple choice', () => {
+  const features = loadFeatures();
+  const centreOf = (c: (typeof COUNTRIES)[number]) =>
+    centre([c.atlas ?? c.name, ...(c.includes ?? [])].map((n) => features.get(n)!));
+
+  it('gives four distinct options including the answer', () => {
+    for (const country of COUNTRIES) {
+      const choices = pickChoices(country, COUNTRIES, centreOf);
+      expect(choices).toHaveLength(4);
+      expect(new Set(choices).size).toBe(4);
+      expect(choices).toContain(country);
+    }
+  });
+
+  it('picks decoys from nearby countries', () => {
+    for (const name of ['Mexico', 'Germany', 'Kenya', 'Thailand']) {
+      for (let i = 0; i < 10; i++) {
+        for (const d of pickChoices(byName(name), COUNTRIES, centreOf)) {
+          expect(distanceKm(centreOf(byName(name)), centreOf(d)), `${name} → ${d.name}`).toBeLessThan(3500);
+        }
+      }
+    }
+  });
+
+  it('measures distance across the antimeridian', () => {
+    expect(distanceKm([0, 179], [0, -179])).toBeLessThan(250);
+    expect(distanceKm([0, 179], [0, 181])).toBeLessThan(250);
   });
 });

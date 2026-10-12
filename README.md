@@ -8,7 +8,9 @@ A small web app for learning general knowledge, starting with geography.
 
 A country is highlighted on a zoomable, pannable world map. Type its name (a dropdown suggests matches as you type) and submit. Wrong answers show the correct one, and your score and streak are tracked as you go. At the end you get a list of the countries you missed.
 
-- Pick a region (World, Africa, Asia, Europe, North America, South America, Oceania) and a quiz length (10, 25 or all).
+- Pick a region (World, Africa, Asia, Europe, North America, South America, Oceania), a quiz type and a quiz length (10, 25 or all).
+- **Type the answer:** type the country's name, with autocomplete.
+- **Multiple choice:** pick from four options. The three wrong ones are drawn from the 8 countries nearest the answer, so they're plausible neighbours. Keys 1–4 pick an option.
 - Answers ignore case, accents and punctuation, and accept common alternative names (e.g. "USA", "Burma", "Ivory Coast", "Czech Republic").
 - Microstates and small island nations get a ring around them so you can spot them.
 - Keyboard: ↑/↓ moves through suggestions, Enter picks one, Enter again submits, and Enter on the result goes to the next question.
@@ -35,4 +37,5 @@ Built with Vite, React, TypeScript and Leaflet. Country shapes come from [Natura
 - `src/lib/geo.ts`: loads map shapes, fixes countries that cross the 180° meridian, and picks the zoom framing
 - `src/components/QuizMap.tsx`: the Leaflet map
 - `src/components/AnswerInput.tsx`: the autocomplete input
+- `src/components/ChoiceButtons.tsx` and `src/lib/choices.ts`: multiple-choice options, picked from the nearest countries
 - `src/App.tsx`: quiz flow (setup → questions → results)

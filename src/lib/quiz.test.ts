@@ -3,6 +3,7 @@ import { COUNTRIES } from '../data/countries';
 import { isCorrect, normalize, suggest } from './answers';
 import { centre, focusBounds, loadFeatures, markerPoints } from './geo';
 import { distanceKm, pickChoices } from './choices';
+import { flagUrl } from './flags';
 
 const byName = (n: string) => COUNTRIES.find((c) => c.name === n)!;
 
@@ -47,9 +48,9 @@ describe('answers', () => {
   });
 
   it('suggests prefix matches first', () => {
-    const names = suggest('ni', COUNTRIES).map((s) => s.country.name);
+    const names = suggest('ni', COUNTRIES).map((s) => s.item.name);
     expect(names.slice(0, 3)).toEqual(['Nicaragua', 'Niger', 'Nigeria']);
-    expect(suggest('ivory', COUNTRIES)[0]).toMatchObject({ country: { name: "Côte d'Ivoire" }, via: 'Ivory Coast' });
+    expect(suggest('ivory', COUNTRIES)[0]).toMatchObject({ item: { name: "Côte d'Ivoire" }, via: 'Ivory Coast' });
   });
 });
 
@@ -107,5 +108,33 @@ describe('multiple choice', () => {
   it('measures distance across the antimeridian', () => {
     expect(distanceKm([0, 179], [0, -179])).toBeLessThan(250);
     expect(distanceKm([0, 179], [0, 181])).toBeLessThan(250);
+  });
+});
+
+describe('flags and capitals', () => {
+  it('has a flag for every country', () => {
+    expect(COUNTRIES.filter((c) => !flagUrl(c.code)).map((c) => c.name)).toEqual([]);
+  });
+
+  it('has unique, unambiguous capitals', () => {
+    const seen = new Map<string, string>();
+    for (const c of COUNTRIES) {
+      for (const form of [c.capital, ...(c.capitalAliases ?? [])]) {
+        const n = normalize(form);
+        expect(seen.get(n) ?? c.name, `"${form}"`).toBe(c.name);
+        seen.set(n, c.name);
+      }
+    }
+  });
+
+  it('accepts common capital spellings', () => {
+    const cap = (n: string) => ({ name: byName(n).capital, aliases: byName(n).capitalAliases });
+    expect(isCorrect('washington dc', cap('United States'))).toBe(true);
+    expect(isCorrect('St Johns', cap('Antigua and Barbuda'))).toBe(true);
+    expect(isCorrect('Nukualofa', cap('Tonga'))).toBe(true);
+    expect(isCorrect('bogota', cap('Colombia'))).toBe(true);
+    expect(isCorrect('Chisinau', cap('Moldova'))).toBe(true);
+    expect(isCorrect('La Paz', cap('Bolivia'))).toBe(true);
+    expect(isCorrect('Sydney', cap('Australia'))).toBe(false);
   });
 });

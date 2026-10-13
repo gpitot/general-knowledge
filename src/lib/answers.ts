@@ -1,12 +1,16 @@
-import type { Country } from '../data/countries';
+/** Something the user can name: a country, a capital… */
+export interface Answerable {
+  name: string;
+  aliases?: string[];
+}
 
 /** Lowercase, strip accents/punctuation, and unify common abbreviations. */
 export function normalize(s: string): string {
   return s
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/['’]/g, '')
+    .replace(/['\u2019\u02bb]/g, '') // apostrophes, incl. curly and ʻokina
     .replace(/&/g, ' and ')
     .replace(/\bst\.?(?=\s)/g, 'saint')
     .replace(/[^a-z0-9]+/g, ' ')
@@ -14,33 +18,33 @@ export function normalize(s: string): string {
     .trim();
 }
 
-function acceptedForms(country: Country): string[] {
-  return [country.name, ...(country.aliases ?? [])].map(normalize);
+function acceptedForms(item: Answerable): string[] {
+  return [item.name, ...(item.aliases ?? [])].map(normalize);
 }
 
-export function isCorrect(input: string, country: Country): boolean {
+export function isCorrect(input: string, item: Answerable): boolean {
   const n = normalize(input);
-  return n.length > 0 && acceptedForms(country).includes(n);
+  return n.length > 0 && acceptedForms(item).includes(n);
 }
 
-export interface Suggestion {
-  country: Country;
+export interface Suggestion<T extends Answerable = Answerable> {
+  item: T;
   /** The alias that matched, if the match wasn't on the canonical name. */
   via?: string;
 }
 
 /**
- * Countries whose name or alias matches the input. Prefix matches on any word
+ * Items whose name or alias matches the input. Prefix matches on any word
  * rank above substring matches; canonical names rank above aliases.
  */
-export function suggest(input: string, countries: Country[], limit = 8): Suggestion[] {
+export function suggest<T extends Answerable>(input: string, items: T[], limit = 8): Suggestion<T>[] {
   const q = normalize(input);
   if (!q) return [];
 
-  const scored: (Suggestion & { score: number })[] = [];
-  for (const country of countries) {
-    const forms = [country.name, ...(country.aliases ?? [])];
-    let best: (Suggestion & { score: number }) | undefined;
+  const scored: (Suggestion<T> & { score: number })[] = [];
+  for (const item of items) {
+    const forms = [item.name, ...(item.aliases ?? [])];
+    let best: (Suggestion<T> & { score: number }) | undefined;
     for (let i = 0; i < forms.length; i++) {
       const n = normalize(forms[i]);
       let score: number;
@@ -49,13 +53,13 @@ export function suggest(input: string, countries: Country[], limit = 8): Suggest
       else if (n.includes(q)) score = 2;
       else continue;
       if (i > 0) score += 0.5;
-      if (!best || score < best.score) best = { country, via: i > 0 ? forms[i] : undefined, score };
+      if (!best || score < best.score) best = { item, via: i > 0 ? forms[i] : undefined, score };
     }
     if (best) scored.push(best);
   }
 
-  scored.sort((a, b) => a.score - b.score || a.country.name.localeCompare(b.country.name));
-  return scored.slice(0, limit).map(({ country, via }) => ({ country, via }));
+  scored.sort((a, b) => a.score - b.score || a.item.name.localeCompare(b.item.name));
+  return scored.slice(0, limit).map(({ item, via }) => ({ item, via }));
 }
 
 export function shuffle<T>(items: T[]): T[] {

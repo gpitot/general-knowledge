@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/gpitot/general-knowledge#readme",
   "dependencies": {
+    "flag-icons": "^7.5.0",
     "leaflet": "^1.9.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

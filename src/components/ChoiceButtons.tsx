@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
-import type { Country } from '../data/countries';
 
 interface Props {
-  choices: Country[];
-  answer: Country;
+  choices: string[];
+  answer: string;
   /** The option the user picked, once they've answered. */
   picked?: string;
   onPick: (name: string) => void;
@@ -17,7 +16,7 @@ export default function ChoiceButtons({ choices, answer, picked, onPick }: Props
     if (answered) return;
     function onKey(e: KeyboardEvent) {
       const i = Number(e.key) - 1;
-      if (Number.isInteger(i) && i >= 0 && i < choices.length) onPick(choices[i].name);
+      if (Number.isInteger(i) && i >= 0 && i < choices.length) onPick(choices[i]);
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -28,17 +27,17 @@ export default function ChoiceButtons({ choices, answer, picked, onPick }: Props
       {choices.map((c, i) => {
         let state = '';
         if (answered && c === answer) state = ' right';
-        else if (answered && c.name === picked) state = ' wrong';
+        else if (answered && c === picked) state = ' wrong';
         return (
           <button
-            key={c.name}
+            key={c}
             type="button"
             className={`choice${state}`}
             disabled={answered}
-            onClick={() => onPick(c.name)}
+            onClick={() => onPick(c)}
           >
             <kbd>{i + 1}</kbd>
-            {c.name}
+            {c}
           </button>
         );
       })}

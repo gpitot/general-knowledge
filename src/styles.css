@@ -135,9 +135,26 @@ legend {
 .missed li:first-child {
   border-top: none;
 }
-.missed span {
-  color: var(--muted);
+.missed li {
+  align-items: center;
+}
+.missed li > .muted {
   text-align: right;
+}
+.missed-answer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.muted {
+  color: var(--muted);
+}
+.mini-flag {
+  width: 32px;
+  height: 24px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--border);
 }
 .row {
   display: flex;
@@ -345,4 +362,31 @@ legend {
 /* Let the unclipped world map (see QuizMap) paint beyond Leaflet's SVG viewport. */
 .quiz-map .leaflet-overlay-pane svg {
   overflow: visible;
+}
+
+/* Question prompt and flag game */
+.prompt {
+  margin: 0;
+  padding: 0.55rem 1rem;
+  text-align: center;
+  font-size: 1.05rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.flag-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+}
+.flag {
+  width: min(560px, 100%);
+  max-height: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  border-radius: 6px;
+  /* Outline so white-edged flags (Japan, Cyprus…) stand out from the page. */
+  box-shadow: 0 0 0 1px var(--border), 0 8px 24px rgba(0, 0, 0, 0.12);
 }

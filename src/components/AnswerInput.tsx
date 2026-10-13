@@ -1,15 +1,16 @@
 import { useId, useMemo, useState, forwardRef } from 'react';
-import type { Country } from '../data/countries';
-import { suggest } from '../lib/answers';
+import { suggest, type Answerable } from '../lib/answers';
 
 interface Props {
-  countries: Country[];
+  /** What can be suggested as the user types. */
+  options: Answerable[];
+  placeholder: string;
   onSubmit: (answer: string) => void;
   onSkip: () => void;
 }
 
 const AnswerInput = forwardRef<HTMLInputElement, Props>(function AnswerInput(
-  { countries, onSubmit, onSkip },
+  { options, placeholder, onSubmit, onSkip },
   ref,
 ) {
   const [value, setValue] = useState('');
@@ -17,7 +18,7 @@ const AnswerInput = forwardRef<HTMLInputElement, Props>(function AnswerInput(
   const [active, setActive] = useState(-1);
   const listId = useId();
 
-  const suggestions = useMemo(() => suggest(value, countries), [value, countries]);
+  const suggestions = useMemo(() => suggest(value, options), [value, options]);
   const showList = open && suggestions.length > 0;
 
   function pick(name: string) {
@@ -45,7 +46,7 @@ const AnswerInput = forwardRef<HTMLInputElement, Props>(function AnswerInput(
       setActive((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (showList && active >= 0) pick(suggestions[active].country.name);
+      if (showList && active >= 0) pick(suggestions[active].item.name);
       else submit();
     } else if (e.key === 'Escape') {
       setOpen(false);
@@ -66,7 +67,7 @@ const AnswerInput = forwardRef<HTMLInputElement, Props>(function AnswerInput(
           ref={ref}
           type="text"
           value={value}
-          placeholder="Type the country name…"
+          placeholder={placeholder}
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
@@ -88,7 +89,7 @@ const AnswerInput = forwardRef<HTMLInputElement, Props>(function AnswerInput(
           <ul className="suggestions" id={listId} role="listbox">
             {suggestions.map((s, i) => (
               <li
-                key={s.country.name}
+                key={s.item.name}
                 id={`${listId}-${i}`}
                 role="option"
                 aria-selected={i === active}
@@ -96,11 +97,11 @@ const AnswerInput = forwardRef<HTMLInputElement, Props>(function AnswerInput(
                 // mousedown (not click) so the input doesn't blur first.
                 onMouseDown={(e) => {
                   e.preventDefault();
-                  pick(s.country.name);
+                  pick(s.item.name);
                 }}
                 onMouseEnter={() => setActive(i)}
               >
-                {s.country.name}
+                {s.item.name}
                 {s.via && <span className="via"> ({s.via})</span>}
               </li>
             ))}

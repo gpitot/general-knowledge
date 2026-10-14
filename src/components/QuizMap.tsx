@@ -35,6 +35,7 @@ export default function QuizMap({ allFeatures, target, status }: Props) {
   const mapRef = useRef<L.Map | null>(null);
   const highlightRef = useRef<L.LayerGroup | null>(null);
   const boundsRef = useRef<L.LatLngBoundsLiteral | null>(null);
+  const shownRef = useRef<CountryFeature[] | null>(null);
 
   // Create the map once, with every country drawn as a neutral base layer.
   // No tile layer: tiles carry place-name labels that would give answers away.
@@ -84,16 +85,26 @@ export default function QuizMap({ allFeatures, target, status }: Props) {
       ro.disconnect();
       map.remove();
       mapRef.current = null;
+      shownRef.current = null;
     };
   }, [allFeatures]);
 
-  // Draw and zoom to the target country whenever the question changes.
+  // Draw and zoom to the target country whenever the question changes. An
+  // empty target shows the whole world with nothing highlighted.
   useEffect(() => {
     const map = mapRef.current;
     const group = highlightRef.current;
-    if (!map || !group || target.length === 0) return;
+    if (!map || !group) return;
 
     group.clearLayers();
+    const isNew = target !== shownRef.current;
+    shownRef.current = target;
+    if (target.length === 0) {
+      boundsRef.current = null;
+      if (isNew) map.flyTo([20, 0], 2, { duration: 0.8 });
+      return;
+    }
+
     const color = HIGHLIGHT[status];
     L.geoJSON({ type: 'FeatureCollection', features: target } as GeoJSON.FeatureCollection, {
       style: { ...WHOLE_WORLD, color, weight: 1.5, fillColor: color, fillOpacity: 0.75 },
@@ -105,8 +116,8 @@ export default function QuizMap({ allFeatures, target, status }: Props) {
     }
     const b = focusBounds(target);
     boundsRef.current = b;
-    // Only re-frame on a new question, not when the colour changes after answering.
-    if (status === 'asking') frame(map, b, 0.8);
+    // Only re-frame on a new target, not when the colour changes after answering.
+    if (isNew) frame(map, b, 0.8);
   }, [target, status]);
 
   return <div ref={containerRef} className="quiz-map" role="img" aria-label="Map with one country highlighted" />;

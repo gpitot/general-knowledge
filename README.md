@@ -19,6 +19,12 @@ Pick a region (World, Africa, Asia, Europe, North America, South America, Oceani
 - Microstates and small island nations get a ring around them on the map so you can spot them.
 - Keyboard: ↑/↓ moves through suggestions, Enter picks one, Enter again submits, and Enter on the result goes to the next question.
 
+## Daily quiz
+
+Each day there is one 10-question multiple-choice quiz that is the same for everyone. It mixes 3 map, 3 flag and 2 capital questions with 2 "Ouagadougou is the capital of which country?" questions. There's no server: the quiz is generated in the browser from a random number generator seeded with the date (`src/lib/daily.ts`), so the same date always gives the same questions and options. The quiz changes at midnight in each player's own time zone. Your score is saved in the browser so you can't replay the day, and "Share result" copies a spoiler-free summary (`🟩🟥…`) to paste into a chat.
+
+Changing the country list or the generator reshuffles every day's quiz, including today's for anyone mid-game. A test pins one date's quiz so that can't happen by accident.
+
 The quiz covers 196 sovereign states: the 193 UN members plus Vatican City, Palestine, Kosovo and Taiwan, minus Tuvalu, which has no shape in the 1:50m map data.
 
 ## Development
@@ -43,4 +49,5 @@ Built with Vite, React, TypeScript and Leaflet. Flags are from [flag-icons](http
 - `src/components/QuizMap.tsx`: the Leaflet map
 - `src/components/AnswerInput.tsx`: the autocomplete input
 - `src/components/ChoiceButtons.tsx` and `src/lib/choices.ts`: multiple-choice options, picked from the nearest countries
+- `src/lib/daily.ts` and `src/lib/random.ts`: the daily quiz, generated from a date-seeded random number generator
 - `src/App.tsx`: quiz flow (setup → questions → results)

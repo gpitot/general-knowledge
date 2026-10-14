@@ -62,10 +62,11 @@ export function suggest<T extends Answerable>(input: string, items: T[], limit =
   return scored.slice(0, limit).map(({ item, via }) => ({ item, via }));
 }
 
-export function shuffle<T>(items: T[]): T[] {
+/** A shuffled copy. Pass a seeded `rng` (see random.ts) for a repeatable order. */
+export function shuffle<T>(items: T[], rng: () => number = Math.random): T[] {
   const a = [...items];
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;

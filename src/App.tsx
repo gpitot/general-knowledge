@@ -4,9 +4,20 @@ import { centre, loadFeatures, type CountryFeature } from './lib/geo';
 import { isCorrect, shuffle, type Answerable } from './lib/answers';
 import { pickChoices } from './lib/choices';
 import { flagUrl, preloadFlag } from './lib/flags';
+import {
+  DAILY_LENGTH,
+  dailyNumber,
+  dailyQuiz,
+  loadDailyResult,
+  localDate,
+  saveDailyResult,
+  shareText,
+  type QuestionKind,
+} from './lib/daily';
 import QuizMap from './components/QuizMap';
 import AnswerInput from './components/AnswerInput';
 import ChoiceButtons from './components/ChoiceButtons';
+import ShareButton from './components/ShareButton';
 
 type RegionChoice = Region | 'World';
 type Game = 'map' | 'flag' | 'capital';
@@ -26,15 +37,19 @@ const QUIZ_TYPES: { value: QuizType; label: string }[] = [
 
 interface Question {
   country: Country;
+  kind: QuestionKind;
   /** Options to pick from, in multiple-choice mode. */
   choices?: string[];
 }
 
 interface Answer {
   country: Country;
+  kind: QuestionKind;
   given: string;
   correct: boolean;
 }
+
+const NO_FEATURES: CountryFeature[] = [];
 
 const FEATURES = loadFeatures();
 const ALL_FEATURES = [...FEATURES.values()];
@@ -50,10 +65,20 @@ const CENTRES = new Map(COUNTRIES.map((c) => [c, centre(featuresFor(c))]));
 const capitalOf = (c: Country): Answerable => ({ name: c.capital, aliases: c.capitalAliases });
 const CAPITALS = COUNTRIES.map(capitalOf);
 
-/** What the user has to name for this country in this game. */
-function answerFor(country: Country, game: Game): Answerable {
-  return game === 'capital' ? capitalOf(country) : country;
+/** What the user has to name for this country in this kind of question. */
+function answerFor(country: Country, kind: QuestionKind): Answerable {
+  return kind === 'capital' ? capitalOf(country) : country;
 }
+
+function formatDate(date: string): string {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+const squares = (results: boolean[]) => results.map((r) => (r ? '🟩' : '🟥')).join('');
+
+/** The address to share: this page, without any query or hash. */
+const pageUrl = () => location.origin + location.pathname;
 
 function Chips<T extends string | number>({
   legend,
@@ -93,6 +118,8 @@ export default function App() {
   const [queue, setQueue] = useState<Question[] | null>(null);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
+  /** The date of the daily quiz being played, or null in practice mode. */
+  const [daily, setDaily] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
@@ -106,7 +133,13 @@ export default function App() {
   const current = question?.country;
   const lastAnswer = answers.length > index ? answers[index] : undefined;
   const finished = queue !== null && index >= queue.length;
-  const target = useMemo(() => (current ? featuresFor(current) : []), [current]);
+  // "Capital of…" questions keep the map blank until answered, as the
+  // highlighted country would give the answer away.
+  const hideTarget = question?.kind === 'capital-of' && !lastAnswer;
+  const target = useMemo(
+    () => (current && !hideTarget ? featuresFor(current) : NO_FEATURES),
+    [current, hideTarget],
+  );
   const score = answers.filter((a) => a.correct).length;
   const streak = useMemo(() => {
     let s = 0;
@@ -122,15 +155,23 @@ export default function App() {
   // Fetch the next flag while the user answers this one.
   useEffect(() => {
     const next = queue?.[index + 1];
-    if (game === 'flag' && next) preloadFlag(next.country.code);
-  }, [game, queue, index]);
+    if (next?.kind === 'flag') preloadFlag(next.country.code);
+  }, [queue, index]);
+
+  function begin(questions: Question[], date: string | null) {
+    setQueue(questions);
+    setDaily(date);
+    setIndex(0);
+    setAnswers([]);
+  }
 
   function start() {
     const shuffled = shuffle(pool);
     const countries = length === 'all' ? shuffled : shuffled.slice(0, length);
-    setQueue(
+    begin(
       countries.map((country) => ({
         country,
+        kind: game,
         // Decoys come from all countries, not just the chosen region, so
         // border countries still get their real neighbours as options.
         choices:
@@ -138,20 +179,60 @@ export default function App() {
             ? pickChoices(country, COUNTRIES, (c) => CENTRES.get(c)!).map((c) => answerFor(c, game).name)
             : undefined,
       })),
+      null,
     );
-    setIndex(0);
-    setAnswers([]);
+  }
+
+  function startDaily() {
+    const date = localDate();
+    begin(
+      dailyQuiz(date, (c) => CENTRES.get(c)!).map(({ country, kind, choices }) => ({
+        country,
+        kind,
+        choices: choices.map((c) => answerFor(c, kind).name),
+      })),
+      date,
+    );
   }
 
   function answer(given: string) {
-    if (!current || lastAnswer) return;
-    setAnswers((a) => [...a, { country: current, given, correct: isCorrect(given, answerFor(current, game)) }]);
+    if (!question || !queue || lastAnswer) return;
+    const { country, kind } = question;
+    const next = [...answers, { country, kind, given, correct: isCorrect(given, answerFor(country, kind)) }];
+    setAnswers(next);
+    if (daily && next.length === queue.length) saveDailyResult(daily, next.map((a) => a.correct));
   }
 
   if (queue === null) {
+    const today = localDate();
+    const played = loadDailyResult(today);
     return (
       <main className="setup">
         <h1>Geography Quiz</h1>
+
+        <section className="daily-card">
+          <div>
+            <h2>Daily quiz #{dailyNumber(today)}</h2>
+            <p className="muted">
+              {formatDate(today)} · {DAILY_LENGTH} mixed questions, the same for everyone today
+            </p>
+          </div>
+          {played ? (
+            <div className="daily-done">
+              <span>
+                You scored <strong>{played.filter(Boolean).length}</strong> / {played.length}{' '}
+                <span aria-hidden="true">{squares(played)}</span>. Come back tomorrow for a new one.
+              </span>
+              <ShareButton text={shareText(today, played, pageUrl())} />
+            </div>
+          ) : (
+            <button type="button" className="btn primary big" onClick={startDaily}>
+              Play today's quiz
+            </button>
+          )}
+        </section>
+
+        <h2>Practice</h2>
         <p className="lede">{GAMES.find((g) => g.value === game)!.lede}</p>
 
         <Chips
@@ -182,12 +263,22 @@ export default function App() {
   if (finished) {
     const missed = answers.filter((a) => !a.correct);
     const pct = Math.round((score / answers.length) * 100);
+    const results = answers.map((a) => a.correct);
     return (
       <main className="results">
+        {daily && <p className="eyebrow">Daily quiz #{dailyNumber(daily)}</p>}
         <h1>
           {score} / {answers.length}
         </h1>
         <p className="lede">{pct}% correct</p>
+        {daily && (
+          <div className="row daily-share">
+            <span className="squares" aria-hidden="true">
+              {squares(results)}
+            </span>
+            <ShareButton text={shareText(daily, results, pageUrl())} />
+          </div>
+        )}
         {missed.length > 0 && (
           <section>
             <h2>To review</h2>
@@ -195,9 +286,10 @@ export default function App() {
               {missed.map((a) => (
                 <li key={a.country.name}>
                   <span className="missed-answer">
-                    {game === 'flag' && <img className="mini-flag" src={flagUrl(a.country.code)} alt="" />}
-                    <strong>{answerFor(a.country, game).name}</strong>
-                    {game === 'capital' && <span className="muted"> · {a.country.name}</span>}
+                    {a.kind === 'flag' && <img className="mini-flag" src={flagUrl(a.country.code)} alt="" />}
+                    <strong>{answerFor(a.country, a.kind).name}</strong>
+                    {a.kind === 'capital' && <span className="muted"> · {a.country.name}</span>}
+                    {a.kind === 'capital-of' && <span className="muted"> · capital {a.country.capital}</span>}
                   </span>
                   <span className="muted">{a.given ? `you said “${a.given}”` : 'skipped'}</span>
                 </li>
@@ -206,18 +298,27 @@ export default function App() {
           </section>
         )}
         <div className="row">
-          <button type="button" className="btn primary big" onClick={start}>
-            Play again
-          </button>
-          <button type="button" className="btn ghost big" onClick={() => setQueue(null)}>
-            Change settings
-          </button>
+          {daily ? (
+            <button type="button" className="btn primary big" onClick={() => setQueue(null)}>
+              Done
+            </button>
+          ) : (
+            <>
+              <button type="button" className="btn primary big" onClick={start}>
+                Play again
+              </button>
+              <button type="button" className="btn ghost big" onClick={() => setQueue(null)}>
+                Change settings
+              </button>
+            </>
+          )}
         </div>
       </main>
     );
   }
 
-  const correctAnswer = current ? answerFor(current, game).name : '';
+  const kind = question?.kind;
+  const correctAnswer = current && kind ? answerFor(current, kind).name : '';
 
   return (
     <div className="quiz">
@@ -226,6 +327,7 @@ export default function App() {
           ← Quit
         </button>
         <span>
+          {daily && <span className="muted daily-tag">Daily #{dailyNumber(daily)} · </span>}
           Question <strong>{index + 1}</strong> of {queue.length}
         </span>
         <span>
@@ -237,16 +339,21 @@ export default function App() {
       </header>
 
       <p className="prompt">
-        {game === 'map' && 'Which country is highlighted?'}
-        {game === 'flag' && 'Which country does this flag belong to?'}
-        {game === 'capital' && (
+        {kind === 'map' && 'Which country is highlighted?'}
+        {kind === 'flag' && 'Which country does this flag belong to?'}
+        {kind === 'capital' && (
           <>
             What is the capital of <strong>{current?.name}</strong>?
           </>
         )}
+        {kind === 'capital-of' && (
+          <>
+            <strong>{current?.capital}</strong> is the capital of which country?
+          </>
+        )}
       </p>
 
-      {game === 'flag' && current ? (
+      {kind === 'flag' && current ? (
         <div className="flag-stage">
           <img key={current.code} className="flag" src={flagUrl(current.code)} alt="Flag to identify" />
         </div>
@@ -284,8 +391,8 @@ export default function App() {
           !lastAnswer && (
             <AnswerInput
               ref={inputRef}
-              options={game === 'capital' ? CAPITALS : COUNTRIES}
-              placeholder={game === 'capital' ? 'Type the capital…' : 'Type the country name…'}
+              options={kind === 'capital' ? CAPITALS : COUNTRIES}
+              placeholder={kind === 'capital' ? 'Type the capital…' : 'Type the country name…'}
               onSubmit={answer}
               onSkip={() => answer('')}
             />

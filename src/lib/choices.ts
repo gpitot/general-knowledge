@@ -15,14 +15,14 @@ export function distanceKm([lat1, lon1]: LatLon, [lat2, lon2]: LatLon): number {
 /**
  * Multiple-choice options for `answer`: the answer plus `count - 1` decoys
  * drawn at random from its `nearest` closest countries, so the options are
- * plausible neighbours rather than obvious giveaways. Returned shuffled.
+ * plausible neighbours rather than obvious giveaways. Returned shuffled, using
+ * `rng` when given so the same seed always gives the same options.
  */
 export function pickChoices(
   answer: Country,
   countries: Country[],
   centreOf: (c: Country) => LatLon,
-  count = 4,
-  nearest = 8,
+  { count = 4, nearest = 8, rng = Math.random }: { count?: number; nearest?: number; rng?: () => number } = {},
 ): Country[] {
   const origin = centreOf(answer);
   const neighbours = countries
@@ -31,5 +31,5 @@ export function pickChoices(
     .sort((a, b) => a.d - b.d)
     .slice(0, nearest)
     .map((x) => x.c);
-  return shuffle([answer, ...shuffle(neighbours).slice(0, count - 1)]);
+  return shuffle([answer, ...shuffle(neighbours, rng).slice(0, count - 1)], rng);
 }

@@ -35,7 +35,7 @@ jobs:
           publish_dir: dist
           # Branches named preview/<name> go to preview/<name>; any other
           # branch goes under preview/<branch>/ too.
-          destination_dir: ${{ github.ref_name == 'main' && '.' || format('preview/{0}', replace(github.ref_name, '^preview/', '')) }}
+          destination_dir: ${{ github.ref_name == 'main' && '.' || (startsWith(github.ref_name, 'preview/') || github.ref_name == 'preview') && github.ref_name || format('preview/{0}', github.ref_name) }}
           # Keep the root site when deploying previews, and vice versa.
           keep_files: true
           force_orphan: false

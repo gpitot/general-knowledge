@@ -17,6 +17,7 @@ Pick a region (World, Africa, Asia, Europe, North America, South America, Oceani
 - Typed answers ignore case, accents and punctuation, and accept common alternatives: "USA", "Burma", "Ivory Coast" for countries, "Washington DC", "Kiev", "Bogota" for capitals. Countries with two official capitals accept either (e.g. Bolivia: Sucre or La Paz).
 - In multiple choice, the three wrong options come from the 8 countries nearest the answer, so they're plausible neighbours. Keys 1–4 pick an option.
 - Microstates and small island nations get a ring around them on the map so you can spot them.
+- After you answer, the map is labelled with every country's name — or every capital city, for capital questions — so you can explore around the answer.
 - Keyboard: ↑/↓ moves through suggestions, Enter picks one, Enter again submits, and Enter on the result goes to the next question.
 
 ## Daily quiz
@@ -43,6 +44,7 @@ Built with Vite, React, TypeScript and Leaflet. Flags are from [flag-icons](http
 ### Layout
 
 - `src/data/countries.ts`: the quiz's country list, with regions, ISO codes, capitals and accepted alternatives
+- `src/data/capitals.ts`: capital city coordinates, generated from Natural Earth populated places
 - `src/lib/answers.ts`: answer normalisation, matching and autocomplete ranking
 - `src/lib/flags.ts`: flag image URLs (each flag is a separate file, loaded when shown)
 - `src/lib/geo.ts`: loads map shapes, fixes countries that cross the 180° meridian, and picks the zoom framing

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { COUNTRIES, REGIONS, type Country, type Region } from './data/countries';
+import { CAPITAL_COORDS } from './data/capitals';
 import { centre, loadFeatures, type CountryFeature } from './lib/geo';
 import { isCorrect, shuffle, type Answerable } from './lib/answers';
 import { pickChoices } from './lib/choices';
@@ -14,7 +15,7 @@ import {
   shareText,
   type QuestionKind,
 } from './lib/daily';
-import QuizMap from './components/QuizMap';
+import QuizMap, { type MapLabel } from './components/QuizMap';
 import AnswerInput from './components/AnswerInput';
 import ChoiceButtons from './components/ChoiceButtons';
 import ShareButton from './components/ShareButton';
@@ -61,6 +62,18 @@ function featuresFor(country: Country): CountryFeature[] {
 }
 
 const CENTRES = new Map(COUNTRIES.map((c) => [c, centre(featuresFor(c))]));
+
+/** After answering, the map is labelled with every country's name. */
+const COUNTRY_LABELS: MapLabel[] = COUNTRIES.map((c) => {
+  const [lat, lon] = CENTRES.get(c)!;
+  return { text: c.name, lat, lon };
+});
+
+/** After a capital question, the map is labelled with every capital, at the city. */
+const CAPITAL_LABELS: MapLabel[] = COUNTRIES.map((c) => {
+  const [lat, lon] = CAPITAL_COORDS[c.name] ?? CENTRES.get(c)!;
+  return { text: c.capital, lat, lon };
+});
 
 const capitalOf = (c: Country): Answerable => ({ name: c.capital, aliases: c.capitalAliases });
 const CAPITALS = COUNTRIES.map(capitalOf);
@@ -362,6 +375,7 @@ export default function App() {
           allFeatures={ALL_FEATURES}
           target={target}
           status={lastAnswer ? (lastAnswer.correct ? 'correct' : 'wrong') : 'asking'}
+          labels={lastAnswer ? (kind === 'capital' ? CAPITAL_LABELS : COUNTRY_LABELS) : null}
         />
       )}
 

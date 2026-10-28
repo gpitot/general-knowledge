@@ -195,6 +195,24 @@ legend {
   background: #fff;
   cursor: pointer;
 }
+/* Name labels shown on the map once the question is answered. */
+.map-label-anchor {
+  background: none;
+  border: none;
+  pointer-events: none;
+}
+.map-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  border-radius: 3px;
+  padding: 2px 4px;
+}
 .controls {
   padding: 0.75rem 1rem 1rem;
   background: var(--surface);

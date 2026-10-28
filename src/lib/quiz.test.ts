@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { COUNTRIES } from '../data/countries';
+import { CAPITAL_COORDS } from '../data/capitals';
 import { isCorrect, normalize, suggest } from './answers';
 import { centre, focusBounds, loadFeatures, markerPoints } from './geo';
 import { distanceKm, pickChoices } from './choices';
@@ -114,6 +115,10 @@ describe('multiple choice', () => {
 describe('flags and capitals', () => {
   it('has a flag for every country', () => {
     expect(COUNTRIES.filter((c) => !flagUrl(c.code)).map((c) => c.name)).toEqual([]);
+  });
+
+  it('has map coordinates for every capital', () => {
+    expect(COUNTRIES.filter((c) => !CAPITAL_COORDS[c.name]).map((c) => c.name)).toEqual([]);
   });
 
   it('has unique, unambiguous capitals', () => {

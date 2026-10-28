@@ -5,10 +5,19 @@ import { focusBounds, markerPoints, type CountryFeature } from '../lib/geo';
 
 export type MapStatus = 'asking' | 'correct' | 'wrong';
 
+/** A text label to place on the map at a [lat, lon] point. */
+export interface MapLabel {
+  text: string;
+  lat: number;
+  lon: number;
+}
+
 interface Props {
   allFeatures: CountryFeature[];
   target: CountryFeature[];
   status: MapStatus;
+  /** Labels to show once the question is answered; null hides them. */
+  labels: MapLabel[] | null;
 }
 
 const HIGHLIGHT: Record<MapStatus, string> = {
@@ -30,10 +39,16 @@ function frame(map: L.Map, bounds: L.LatLngBoundsLiteral, duration: number) {
   map.flyTo(b.getCenter(), Math.max(zoom, 1), { duration });
 }
 
-export default function QuizMap({ allFeatures, target, status }: Props) {
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+const labelIcon = (text: string) =>
+  L.divIcon({ className: 'map-label-anchor', html: `<span class="map-label">${escapeHtml(text)}</span>`, iconSize: [0, 0] });
+
+export default function QuizMap({ allFeatures, target, status, labels }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const highlightRef = useRef<L.LayerGroup | null>(null);
+  const labelsRef = useRef<L.LayerGroup | null>(null);
   const boundsRef = useRef<L.LatLngBoundsLiteral | null>(null);
   const shownRef = useRef<CountryFeature[] | null>(null);
 
@@ -57,6 +72,7 @@ export default function QuizMap({ allFeatures, target, status }: Props) {
       interactive: false,
     }).addTo(map);
     highlightRef.current = L.layerGroup().addTo(map);
+    labelsRef.current = L.layerGroup().addTo(map);
 
     const Recenter = L.Control.extend({
       onAdd() {
@@ -85,6 +101,7 @@ export default function QuizMap({ allFeatures, target, status }: Props) {
       ro.disconnect();
       map.remove();
       mapRef.current = null;
+      labelsRef.current = null;
       shownRef.current = null;
     };
   }, [allFeatures]);
@@ -119,6 +136,18 @@ export default function QuizMap({ allFeatures, target, status }: Props) {
     // Only re-frame on a new target, not when the colour changes after answering.
     if (isNew) frame(map, b, 0.8);
   }, [target, status]);
+
+  // Name labels appear only once the question is answered, so they never
+  // give the answer away while the user is still thinking.
+  useEffect(() => {
+    const group = labelsRef.current;
+    if (!group) return;
+    group.clearLayers();
+    if (!labels) return;
+    for (const l of labels) {
+      L.marker([l.lat, l.lon], { icon: labelIcon(l.text), interactive: false, keyboard: false }).addTo(group);
+    }
+  }, [labels]);
 
   return <div ref={containerRef} className="quiz-map" role="img" aria-label="Map with one country highlighted" />;
 }

@@ -2,18 +2,17 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    # main publishes the site root; every other branch publishes a preview
-    # under /preview/<branch>/ so changes can be reviewed before merging.
-    branches: ['**']
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
-# One in-flight deploy per branch, so main and preview pushes don't clobber
-# each other's commits to the gh-pages branch.
+# Let an in-progress deploy finish rather than cancelling it mid-publish.
 concurrency:
-  group: pages-${{ github.ref }}
+  group: pages
   cancel-in-progress: false
 
 jobs:
@@ -28,14 +27,16 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
-      - name: Deploy
-        uses: peaceiris/actions-gh-pages@v4
+      - uses: actions/upload-pages-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: dist
-          # Branches named preview/<name> go to preview/<name>; any other
-          # branch goes under preview/<branch>/ too.
-          destination_dir: ${{ github.ref_name == 'main' && '.' || (startsWith(github.ref_name, 'preview/') || github.ref_name == 'preview') && github.ref_name || format('preview/{0}', github.ref_name) }}
-          # Keep the root site when deploying previews, and vice versa.
-          keep_files: true
-          force_orphan: false
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

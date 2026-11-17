@@ -6,6 +6,16 @@ import { isCorrect, shuffle, type Answerable } from './lib/answers';
 import { pickChoices } from './lib/choices';
 import { flagUrl, preloadFlag } from './lib/flags';
 import {
+  difficulty,
+  loadTrainingMode,
+  loadTrainingStats,
+  recordAnswer,
+  saveTrainingMode,
+  saveTrainingStats,
+  trainingCountries,
+  type TrainingStats,
+} from './lib/training';
+import {
   DAILY_LENGTH,
   dailyNumber,
   dailyQuiz,
@@ -93,7 +103,7 @@ const squares = (results: boolean[]) => results.map((r) => (r ? '🟩' : '🟥')
 /** The address to share: this page, without any query or hash. */
 const pageUrl = () => location.origin + location.pathname;
 
-function Chips<T extends string | number>({
+function Chips<T extends string | number | boolean>({
   legend,
   options,
   value,
@@ -110,7 +120,7 @@ function Chips<T extends string | number>({
       <div className="chips">
         {options.map((o) => (
           <button
-            key={o.value}
+            key={String(o.value)}
             type="button"
             className={`chip${o.value === value ? ' on' : ''}`}
             onClick={() => onChange(o.value)}
@@ -133,6 +143,10 @@ export default function App() {
   const [answers, setAnswers] = useState<Answer[]>([]);
   /** The date of the daily quiz being played, or null in practice mode. */
   const [daily, setDaily] = useState<string | null>(null);
+  /** Bias practice questions towards past mistakes (daily quiz is unaffected). */
+  const [training, setTraining] = useState(() => loadTrainingMode());
+  /** Per-question history feeding training mode, mirrored to localStorage. */
+  const [stats, setStats] = useState<TrainingStats>(() => loadTrainingStats());
 
   const inputRef = useRef<HTMLInputElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
@@ -178,9 +192,16 @@ export default function App() {
     setAnswers([]);
   }
 
+  function setTrainingMode(on: boolean) {
+    setTraining(on);
+    saveTrainingMode(on);
+  }
+
   function start() {
-    const shuffled = shuffle(pool);
-    const countries = length === 'all' ? shuffled : shuffled.slice(0, length);
+    const count = length === 'all' ? pool.length : length;
+    const countries = training
+      ? trainingCountries(pool, count, game, stats)
+      : shuffle(pool).slice(0, count);
     begin(
       countries.map((country) => ({
         country,
@@ -211,14 +232,20 @@ export default function App() {
   function answer(given: string) {
     if (!question || !queue || lastAnswer) return;
     const { country, kind } = question;
-    const next = [...answers, { country, kind, given, correct: isCorrect(given, answerFor(country, kind)) }];
+    const correct = isCorrect(given, answerFor(country, kind));
+    const next = [...answers, { country, kind, given, correct }];
     setAnswers(next);
+    // Feed training history from every answer, practice and daily alike.
+    const nextStats = recordAnswer(stats, kind, country.name, correct);
+    setStats(nextStats);
+    saveTrainingStats(nextStats);
     if (daily && next.length === queue.length) saveDailyResult(daily, next.map((a) => a.correct));
   }
 
   if (queue === null) {
     const today = localDate();
     const played = loadDailyResult(today);
+    const trickyCount = pool.filter((c) => difficulty(stats, game, c.name) > 0).length;
     return (
       <main className="setup">
         <h1>Geography Quiz</h1>
@@ -265,6 +292,22 @@ export default function App() {
           value={length}
           onChange={setLength}
         />
+        <Chips
+          legend="Training mode"
+          options={[
+            { value: false, label: 'Off' },
+            { value: true, label: 'On' },
+          ]}
+          value={training}
+          onChange={setTrainingMode}
+        />
+        {training && (
+          <p className="muted">
+            {trickyCount > 0
+              ? `This quiz favours the ${trickyCount} question${trickyCount === 1 ? '' : 's'} you've gotten wrong in this game, with some random ones mixed in.`
+              : 'You have no past mistakes in this game yet, so this quiz will be random.'}
+          </p>
+        )}
 
         <button type="button" className="btn primary big" onClick={start}>
           Start quiz

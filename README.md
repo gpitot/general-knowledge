@@ -19,6 +19,7 @@ Pick a region (World, Africa, Asia, Europe, North America, South America, Oceani
 - Microstates and small island nations get a ring around them on the map so you can spot them.
 - After you answer, the map is labelled with every country's name — or every capital city, for capital questions — so you can explore around the answer.
 - Keyboard: ↑/↓ moves through suggestions, Enter picks one, Enter again submits, and Enter on the result goes to the next question.
+- **Training mode** (practice only, off by default): a toggle on the setup screen biases the quiz towards questions you've gotten wrong recently. Roughly 70% of each quiz comes from past mistakes — the hardest first, the rest random — so every country still has a chance. Wrong answers raise a question's score and correct answers lower it, with older answers fading, so repeated corrects "unstick" a question. The per-question history is kept in the browser only, and daily quiz answers feed it too (without affecting the daily itself).
 
 ## Daily quiz
 
@@ -52,4 +53,5 @@ Built with Vite, React, TypeScript and Leaflet. Flags are from [flag-icons](http
 - `src/components/AnswerInput.tsx`: the autocomplete input
 - `src/components/ChoiceButtons.tsx` and `src/lib/choices.ts`: multiple-choice options, picked from the nearest countries
 - `src/lib/daily.ts` and `src/lib/random.ts`: the daily quiz, generated from a date-seeded random number generator
+- `src/lib/training.ts`: training mode — per-question scores, biased quiz selection, and browser storage
 - `src/App.tsx`: quiz flow (setup → questions → results)
